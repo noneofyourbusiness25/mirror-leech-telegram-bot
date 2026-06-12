@@ -47,7 +47,7 @@ def fetch_html(url):
         if resp.json().get("status") == "ok":
             return resp.json()["solution"]["response"]
     except Exception as e:
-        pass
+        logger.error(f"[!] FlareSolverr Error on {url}: {e}")
     return ""
 
 def get_root_title(raw_title):
@@ -118,69 +118,74 @@ while True:
     logger.info(f"\n--- ⏰ Scanning Index: {time.ctime()} ---")
     feed_updated = False
     
-    for site_url in TARGET_SITES:
-        html = fetch_html(site_url)
-        
-        if html:
-            topics = set(re.findall(r'https://www\.1tamil(?:mv|blasters)\.[a-z]+/index\.php\?/forums/topic/[^\s"\'><]+', html))
-            new_topics = topics - history_urls
+    try:
+        for site_url in TARGET_SITES:
+            html = fetch_html(site_url)
             
-            if new_topics:
-                logger.info(f"[+] Found {len(new_topics)} new posts on {site_url}! Processing...")
+            if html:
+                topics = set(re.findall(r'https://www\.1tamil(?:mv|blasters)\.[a-z]+/index\.php\?/forums/topic/[^\s"\'><]+', html))
+                new_topics = topics - history_urls
                 
-                for topic in new_topics:
-                    page_html = fetch_html(topic)
-                    if not page_html:
-                        continue
-                    raw_magnets = set(re.findall(r'magnet:\?xt=urn:btih:[^\s"\'><]+', page_html))
+                if new_topics:
+                    logger.info(f"[+] Found {len(new_topics)} new posts on {site_url}! Processing...")
                     
-                    for mag in raw_magnets:
-                        clean_mag = mag.replace("&amp;", "&")
-                        
-                        match = re.search(r'dn=([^&]+)', clean_mag)
-                        title = urllib.parse.unquote_plus(match.group(1)) if match else "Unknown Release"
-                        
-                        # Clean out site names from the title tag
-                        title = re.sub(r'www\.1Tamil(?:MV|Blasters)\.[a-z]+\s*-\s*', '', title, flags=re.IGNORECASE)
-                        title_lower = title.lower()
-                        
-                        # Apply your custom 4K and Size Filters
-                        if any(resolution in title_lower for resolution in ["4k", "2160p", "uhd"]):
-                            logger.info(f"⏩ Filtered Out (4K): {title}")
+                    for topic in new_topics:
+                        page_html = fetch_html(topic)
+                        if not page_html:
                             continue
+                        raw_magnets = set(re.findall(r'magnet:\?xt=urn:btih:[^\s"\'><]+', page_html))
+
+                        for mag in raw_magnets:
+                            clean_mag = mag.replace("&amp;", "&")
+
+                            match = re.search(r'dn=([^&]+)', clean_mag)
+                            title = urllib.parse.unquote_plus(match.group(1)) if match else "Unknown Release"
                             
-                        size_match = re.search(r'(\d+(?:\.\d+)?)\s*(gb|mb)', title_lower)
-                        if size_match:
-                            if size_match.group(2) == "gb" and float(size_match.group(1)) > 4.0:
-                                logger.info(f"⏩ Filtered Out (Oversized {size_match.group(1)}GB): {title}")
+                            # Clean out site names from the title tag
+                            title = re.sub(r'www\.1Tamil(?:MV|Blasters)\.[a-z]+\s*-\s*', '', title, flags=re.IGNORECASE)
+                            title_lower = title.lower()
+
+                            # Apply your custom 4K and Size Filters
+                            if any(resolution in title_lower for resolution in ["4k", "2160p", "uhd"]):
+                                logger.info(f"⏩ Filtered Out (4K): {title}")
                                 continue
-                        
-                        # Check the Cross-Site Duplicate Filter!
-                        root_title = get_root_title(title)
-                        
-                        if root_title not in history_titles and root_title != "unknown release":
-                            logger.info(f"✅ Added to Feed: {title}")
-                            magnets_db.append({"title": title, "magnet": clean_mag, "date": formatdate(localtime=False)})
-                            feed_updated = True
+
+                            size_match = re.search(r'(\d+(?:\.\d+)?)\s*(gb|mb)', title_lower)
+                            if size_match:
+                                if size_match.group(2) == "gb" and float(size_match.group(1)) > 4.0:
+                                    logger.info(f"⏩ Filtered Out (Oversized {size_match.group(1)}GB): {title}")
+                                    continue
                             
-                            # Save to Title memory
-                            history_titles.add(root_title)
-                            with open(_file("history_titles.txt"), "a") as f:
-                                f.write(root_title + "\n")
-                        else:
-                            logger.info(f"🛑 Ignored Duplicate Across Sites: {title}")
+                            # Check the Cross-Site Duplicate Filter!
+                            root_title = get_root_title(title)
+
+                            if root_title not in history_titles and root_title != "unknown release":
+                                logger.info(f"✅ Added to Feed: {title}")
+                                magnets_db.append({"title": title, "magnet": clean_mag, "date": formatdate(localtime=False)})
+                                feed_updated = True
+
+                                # Save to Title memory
+                                history_titles.add(root_title)
+                                with open(_file("history_titles.txt"), "a") as f:
+                                    f.write(root_title + "\n")
+                            else:
+                                logger.info(f"🛑 Ignored Duplicate Across Sites: {title}")
+
+                        # Save the URL so we never open this thread again
+                        history_urls.add(topic)
+                        with open(_file("history_urls.txt"), "a") as f:
+                            f.write(topic + "\n")
                     
-                    # Save the URL so we never open this thread again
-                    history_urls.add(topic)
-                    with open(_file("history_urls.txt"), "a") as f:
-                        f.write(topic + "\n")
+        if feed_updated:
+            if len(magnets_db) > 100:
+                magnets_db = magnets_db[-100:]
+            with open(_file("db.json"), "w") as f:
+                json.dump(magnets_db, f)
+            build_rss(magnets_db)
                 
-    if feed_updated:
-        if len(magnets_db) > 100: 
-            magnets_db = magnets_db[-100:]
-        with open(_file("db.json"), "w") as f:
-            json.dump(magnets_db, f)
-        build_rss(magnets_db)
-            
+
+    except Exception as e:
+        logger.exception(f"[!] Unexpected error during scrape cycle: {e}")
+
     logger.info(f"💤 Standby mode active for 5 minutes...")
     time.sleep(CHECK_INTERVAL)

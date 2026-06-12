@@ -167,66 +167,70 @@ while True:
     logger.info(f"\n--- ⏰ Scanning Vegamovies Index: {time.ctime()} ---")
     feed_updated = False
     
-    sol = fetch_html(TARGET_SITE)
-    if sol:
-        soup = BeautifulSoup(sol["response"], "html.parser")
-        new_posts = []
-        
-        for a_tag in soup.select("h3 a"): 
-            post_title = a_tag.text.strip()
-            post_url = a_tag.get("href")
+    try:
+        sol = fetch_html(TARGET_SITE)
+        if sol:
+            soup = BeautifulSoup(sol["response"], "html.parser")
+            new_posts = []
             
-            if post_url and post_title not in history_titles:
-                new_posts.append((post_title, post_url))
-        
-        if new_posts:
-            logger.info(f"[+] Found {len(new_posts)} new or updated posts! Processing...")
-            
-            for post_title, post_url in new_posts:
-                logger.info(f"[*] Analyzing: {post_title}")
-                post_sol = fetch_html(post_url)
-                if not post_sol:
-                    continue
-                post_soup = BeautifulSoup(post_sol["response"], "html.parser")
+            for a_tag in soup.select("h3 a"):
+                post_title = a_tag.text.strip()
+                post_url = a_tag.get("href")
                 
-                target_hub_link = None
+                if post_url and post_title not in history_titles:
+                    new_posts.append((post_title, post_url))
+
+            if new_posts:
+                logger.info(f"[+] Found {len(new_posts)} new or updated posts! Processing...")
                 
-                for btn in post_soup.find_all("a"):
-                    btn_text = btn.text.upper()
-                    btn_href = btn.get("href", "")
-                    if "CLICK HERE TO DOWNLOAD" in btn_text:
-                        if is_under_4gb(btn_text):
-                            if not target_hub_link or "1080P" in btn_text:
-                                target_hub_link = btn_href
-                
-                if target_hub_link:
-                    gatekeepers = get_gatekeepers_from_hub(target_hub_link)
+                for post_title, post_url in new_posts:
+                    logger.info(f"[*] Analyzing: {post_title}")
+                    post_sol = fetch_html(post_url)
+                    if not post_sol:
+                        continue
+                    post_soup = BeautifulSoup(post_sol["response"], "html.parser")
                     
-                    for gate_url in gatekeepers:
-                        if gate_url not in history_gatekeepers:
-                            final_link = bypass_cloudflare(gate_url)
-                            
-                            if final_link:
-                                logger.info(f"✅ Added to Feed: {final_link}")
-                                movies_db.append({"title": post_title, "link": final_link, "date": formatdate(localtime=False)})
-                                feed_updated = True
-                                
-                            history_gatekeepers.add(gate_url)
-                            # ISOLATED GATEKEEPER MEMORY
-                            with open(_file("vega_history_gatekeepers.txt"), "a") as f:
-                                f.write(gate_url + "\n")
-                                
-                history_titles.add(post_title)
-                # ISOLATED TITLE MEMORY
-                with open(_file("vega_history_titles.txt"), "a") as f:
-                    f.write(post_title + "\n")
+                    target_hub_link = None
                     
-    if feed_updated:
-        if len(movies_db) > 200: movies_db = movies_db[-200:]
-        # ISOLATED DATABASE FILE
-        with open(_file("vega_db.json"), "w") as f: json.dump(movies_db, f)
-        build_rss(movies_db)
-            
+                    for btn in post_soup.find_all("a"):
+                        btn_text = btn.text.upper()
+                        btn_href = btn.get("href", "")
+                        if "CLICK HERE TO DOWNLOAD" in btn_text:
+                            if is_under_4gb(btn_text):
+                                if not target_hub_link or "1080P" in btn_text:
+                                    target_hub_link = btn_href
+
+                    if target_hub_link:
+                        gatekeepers = get_gatekeepers_from_hub(target_hub_link)
+
+                        for gate_url in gatekeepers:
+                            if gate_url not in history_gatekeepers:
+                                final_link = bypass_cloudflare(gate_url)
+
+                                if final_link:
+                                    logger.info(f"✅ Added to Feed: {final_link}")
+                                    movies_db.append({"title": post_title, "link": final_link, "date": formatdate(localtime=False)})
+                                    feed_updated = True
+
+                                history_gatekeepers.add(gate_url)
+                                # ISOLATED GATEKEEPER MEMORY
+                                with open(_file("vega_history_gatekeepers.txt"), "a") as f:
+                                    f.write(gate_url + "\n")
+
+                    history_titles.add(post_title)
+                    # ISOLATED TITLE MEMORY
+                    with open(_file("vega_history_titles.txt"), "a") as f:
+                        f.write(post_title + "\n")
+
+        if feed_updated:
+            if len(movies_db) > 200: movies_db = movies_db[-200:]
+            # ISOLATED DATABASE FILE
+            with open(_file("vega_db.json"), "w") as f: json.dump(movies_db, f)
+            build_rss(movies_db)
+
+
+    except Exception as e:
+        logger.exception(f"[!] Unexpected error during scrape cycle: {e}")
+
     logger.info(f"💤 Standby mode active for 5 minutes...")
     time.sleep(CHECK_INTERVAL)
-
