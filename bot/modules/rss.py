@@ -820,20 +820,31 @@ async def rss_monitor():
                             timeout=60,
                             verify=False,
                         ) as client:
+                            LOGGER.info(f"Fetching RSS URL: {data['link']}")
                             res = await client.get(data["link"])
+                            LOGGER.info(f"RSS Fetch HTTP Status: {res.status_code} for {data['link']}")
                         html = res.text
+                        LOGGER.info(f"RSS Response Length: {len(html)} chars. Preview: {html[:200]}")
                         break
-                    except:
+                    except Exception as e:
+                        LOGGER.error(f"Error fetching RSS {data['link']}: {e}")
                         tries += 1
                         if tries > 3:
                             raise
                         continue
                 rss_d = feed_parse(html)
+                LOGGER.info(f"Feedparser Bozo Status: {rss_d.bozo} for {data['link']}")
+                if rss_d.bozo:
+                    LOGGER.info(f"Feedparser Bozo Exception: {rss_d.get('bozo_exception')} for {data['link']}")
+                LOGGER.info(f"Parsed entry count: {len(rss_d.entries)} for {data['link']}")
+
                 if not rss_d.entries:
                     LOGGER.warning(
                         f"No entries found for > Feed Title: {title} - Feed Link: {data['link']}"
                     )
                     continue
+                else:
+                    LOGGER.info(f"First parsed entry Title: {rss_d.entries[0].get('title')} - Link: {rss_d.entries[0].get('link')}")
                 entry0 = rss_d.entries[0]
                 links = entry0.get("links", [])
                 if len(links) > 1:

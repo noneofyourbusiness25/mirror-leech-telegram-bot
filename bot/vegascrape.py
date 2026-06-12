@@ -168,10 +168,12 @@ def build_rss(items):
     xml += "<title>Vegamovies Auto Feed</title>\n<link>http://localhost</link>\n<description>Automated DDL Feed</description>\n"
 
     for item in reversed(items):
+        title = item["title"].replace("<![CDATA[", "").replace("]]>", "")
+        link = item["link"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         xml += "<item>\n"
-        xml += f'  <title>{item["title"]}</title>\n'
-        xml += f'  <link>{item["link"]}</link>\n'
-        xml += f'  <guid>{item["link"]}</guid>\n'
+        xml += f'  <title><![CDATA[{title}]]></title>\n'
+        xml += f'  <link>{link}</link>\n'
+        xml += f'  <guid>{link}</guid>\n'
         xml += f'  <pubDate>{item["date"]}</pubDate>\n'
         xml += "</item>\n"
 
