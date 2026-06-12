@@ -166,6 +166,8 @@ while True:
             for post_title, post_url in new_posts:
                 print(f"[*] Analyzing: {post_title}")
                 post_sol = fetch_html(post_url)
+                if not post_sol:
+                    continue
                 post_soup = BeautifulSoup(post_sol["response"], "html.parser")
                 
                 target_hub_link = None

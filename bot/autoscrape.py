@@ -111,6 +111,8 @@ while True:
                 
                 for topic in new_topics:
                     page_html = fetch_html(topic)
+                    if not page_html:
+                        continue
                     raw_magnets = set(re.findall(r'magnet:\?xt=urn:btih:[^\s"\'><]+', page_html))
                     
                     for mag in raw_magnets:
