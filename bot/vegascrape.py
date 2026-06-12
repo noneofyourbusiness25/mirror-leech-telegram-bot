@@ -13,6 +13,12 @@ FLARESOLVERR_API = "http://localhost:8191/v1"
 SESSION_ID = "vegamovies_master"
 CHECK_INTERVAL = 300  
 
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "scrapers")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+def _file(filename):
+    return os.path.join(DATA_DIR, filename)
+
 print("🚀 Starting Vegamovies V3 (Isolated Episodic Memory & Hybrid Bypasser)...")
 
 # Initialize a persistent browser session
@@ -130,13 +136,13 @@ def build_rss(items):
         
     xml += '</channel>\n</rss>'
     # ISOLATED FEED FILE
-    with open("vega_feed.xml", "w", encoding="utf-8") as f:
+    with open(_file("vega_feed.xml"), "w", encoding="utf-8") as f:
         f.write(xml)
 
 # Load databases - ISOLATED FILE NAMES
-history_titles = set(open("vega_history_titles.txt").read().splitlines()) if os.path.exists("vega_history_titles.txt") else set()
-history_gatekeepers = set(open("vega_history_gatekeepers.txt").read().splitlines()) if os.path.exists("vega_history_gatekeepers.txt") else set()
-movies_db = json.load(open("vega_db.json")) if os.path.exists("vega_db.json") else []
+history_titles = set(open(_file("vega_history_titles.txt")).read().splitlines()) if os.path.exists(_file("vega_history_titles.txt")) else set()
+history_gatekeepers = set(open(_file("vega_history_gatekeepers.txt")).read().splitlines()) if os.path.exists(_file("vega_history_gatekeepers.txt")) else set()
+movies_db = json.load(open(_file("vega_db.json"))) if os.path.exists(_file("vega_db.json")) else []
 
 while True:
     print(f"\n--- ⏰ Scanning Vegamovies Index: {time.ctime()} ---")
@@ -186,18 +192,18 @@ while True:
                                 
                             history_gatekeepers.add(gate_url)
                             # ISOLATED GATEKEEPER MEMORY
-                            with open("vega_history_gatekeepers.txt", "a") as f:
+                            with open(_file("vega_history_gatekeepers.txt"), "a") as f:
                                 f.write(gate_url + "\n")
                                 
                 history_titles.add(post_title)
                 # ISOLATED TITLE MEMORY
-                with open("vega_history_titles.txt", "a") as f:
+                with open(_file("vega_history_titles.txt"), "a") as f:
                     f.write(post_title + "\n")
                     
     if feed_updated:
         if len(movies_db) > 200: movies_db = movies_db[-200:]
         # ISOLATED DATABASE FILE
-        with open("vega_db.json", "w") as f: json.dump(movies_db, f)
+        with open(_file("vega_db.json"), "w") as f: json.dump(movies_db, f)
         build_rss(movies_db)
             
     print(f"💤 Standby mode active for 5 minutes...")

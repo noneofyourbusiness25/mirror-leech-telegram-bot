@@ -14,6 +14,12 @@ TARGET_SITES = [
 FLARESOLVERR_API = "http://localhost:8191/v1"
 CHECK_INTERVAL = 300  
 
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "scrapers")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+def _file(filename):
+    return os.path.join(DATA_DIR, filename)
+
 print("🚀 Starting Ultimate Multi-Site Auto-RSS Engine...")
 
 def fetch_html(url):
@@ -68,13 +74,13 @@ def build_rss(items):
         xml += '</item>\n'
         
     xml += '</channel>\n</rss>'
-    with open("feed.xml", "w", encoding="utf-8") as f:
+    with open(_file("feed.xml"), "w", encoding="utf-8") as f:
         f.write(xml)
 
 # --- Flood Protection Baseline Logic ---
-if not os.path.exists("history_urls.txt"):
+if not os.path.exists(_file("history_urls.txt")):
     print("[*] First run detected. Creating a baseline index of BOTH sites to prevent bot flooding...")
-    with open("history_urls.txt", "w") as f:
+    with open(_file("history_urls.txt"), "w") as f:
         for site in TARGET_SITES:
             html = fetch_html(site)
             if html:
@@ -85,9 +91,9 @@ if not os.path.exists("history_urls.txt"):
     print("✅ Baseline established! Bot will only parse topics posted from this moment forward.")
 
 # Load active state databases
-history_urls = set(open("history_urls.txt").read().splitlines()) if os.path.exists("history_urls.txt") else set()
-history_titles = set(open("history_titles.txt").read().splitlines()) if os.path.exists("history_titles.txt") else set()
-magnets_db = json.load(open("db.json")) if os.path.exists("db.json") else []
+history_urls = set(open(_file("history_urls.txt")).read().splitlines()) if os.path.exists(_file("history_urls.txt")) else set()
+history_titles = set(open(_file("history_titles.txt")).read().splitlines()) if os.path.exists(_file("history_titles.txt")) else set()
+magnets_db = json.load(open(_file("db.json"))) if os.path.exists(_file("db.json")) else []
 
 while True:
     print(f"\n--- ⏰ Scanning Index: {time.ctime()} ---")
@@ -138,20 +144,20 @@ while True:
                             
                             # Save to Title memory
                             history_titles.add(root_title)
-                            with open("history_titles.txt", "a") as f:
+                            with open(_file("history_titles.txt"), "a") as f:
                                 f.write(root_title + "\n")
                         else:
                             print(f"🛑 Ignored Duplicate Across Sites: {title}")
                     
                     # Save the URL so we never open this thread again
                     history_urls.add(topic)
-                    with open("history_urls.txt", "a") as f:
+                    with open(_file("history_urls.txt"), "a") as f:
                         f.write(topic + "\n")
                 
     if feed_updated:
         if len(magnets_db) > 100: 
             magnets_db = magnets_db[-100:]
-        with open("db.json", "w") as f: 
+        with open(_file("db.json"), "w") as f:
             json.dump(magnets_db, f)
         build_rss(magnets_db)
             
