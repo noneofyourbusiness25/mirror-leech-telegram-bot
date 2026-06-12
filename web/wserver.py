@@ -3,9 +3,10 @@ from uvloop import install
 install()
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from logging import getLogger, FileHandler, StreamHandler, INFO, basicConfig, WARNING
+import os
 from asyncio import sleep
 from sabnzbdapi import SabnzbdClient
 from aioaria2 import Aria2HttpClient
@@ -240,6 +241,20 @@ async def set_aria2(gid, selected_files):
     else:
         LOGGER.info(f"Verification Failed! Report! Gid: {gid}")
 
+
+@app.get("/feed.xml")
+async def get_feed():
+    file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bot", "data", "scrapers", "feed.xml")
+    if os.path.exists(file_path):
+        return FileResponse(file_path, media_type="application/xml")
+    return HTMLResponse("Feed not found", status_code=404)
+
+@app.get("/vega_feed.xml")
+async def get_vega_feed():
+    file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bot", "data", "scrapers", "vega_feed.xml")
+    if os.path.exists(file_path):
+        return FileResponse(file_path, media_type="application/xml")
+    return HTMLResponse("Feed not found", status_code=404)
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage():

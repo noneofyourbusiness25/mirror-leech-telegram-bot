@@ -22,6 +22,15 @@ def add_handlers():
             & CustomFilters.sudo,
         )
     )
+    from ..modules.scrapers import manage_scrapers
+
+    TgClient.bot.add_handler(
+        MessageHandler(
+            manage_scrapers,
+            filters=command(BotCommands.ScraperCommand, case_sensitive=True)
+            & CustomFilters.sudo,
+        )
+    )
     TgClient.bot.add_handler(
         MessageHandler(
             add_sudo,
