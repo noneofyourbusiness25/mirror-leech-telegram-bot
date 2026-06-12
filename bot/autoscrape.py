@@ -65,7 +65,7 @@ def build_rss(items):
     xml = '<?xml version="1.0" encoding="UTF-8" ?>\n<rss version="2.0">\n<channel>\n'
     xml += '<title>Ultimate Multi-Site Auto Feed</title>\n<link>http://localhost</link>\n<description>Automated Feed with Duplicate Protection</description>\n'
     
-    for item in items:
+    for item in reversed(items):
         xml += '<item>\n'
         xml += f'  <title>{item["title"]}</title>\n'
         xml += f'  <link>{item["magnet"]}</link>\n'
