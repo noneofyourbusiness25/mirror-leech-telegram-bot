@@ -1,0 +1,12 @@
+start.sh: line 1: mltbenv/bin/activate: No such file or directory
+Traceback (most recent call last):
+  File "/app/update.py", line 14, in <module>
+    from pymongo.mongo_client import MongoClient
+ModuleNotFoundError: No module named 'pymongo'
+Traceback (most recent call last):
+  File "<frozen runpy>", line 189, in _run_module_as_main
+  File "<frozen runpy>", line 148, in _get_module_details
+  File "<frozen runpy>", line 112, in _get_module_details
+  File "/app/bot/__init__.py", line 1, in <module>
+    from uvloop import install
+ModuleNotFoundError: No module named 'uvloop'
