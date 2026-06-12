@@ -1,9 +1,11 @@
 import requests
+import logging
 import re
 import time
 import os
 import json
 import urllib.parse
+import traceback
 from email.utils import formatdate
 
 # --- Configuration ---
@@ -17,10 +19,27 @@ CHECK_INTERVAL = 300
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "scrapers")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 def _file(filename):
+
     return os.path.join(DATA_DIR, filename)
 
-print("🚀 Starting Ultimate Multi-Site Auto-RSS Engine...")
+def init_empty_feed():
+    filepath = _file("feed.xml")
+    if not os.path.exists(filepath):
+        xml = '<?xml version="1.0" encoding="UTF-8" ?>\n<rss version="2.0">\n<channel>\n<title>Ultimate Multi-Site Auto Feed</title>\n<link>http://localhost</link>\n<description>Automated Feed</description>\n</channel>\n</rss>'
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(xml)
+        logger.info(f"Initialized empty feed file: feed.xml")
+
+init_empty_feed()
+
+
+
+
+
+logger.info("🚀 Starting Ultimate Multi-Site Auto-RSS Engine...")
 
 def fetch_html(url):
     try:
@@ -79,7 +98,7 @@ def build_rss(items):
 
 # --- Flood Protection Baseline Logic ---
 if not os.path.exists(_file("history_urls.txt")):
-    print("[*] First run detected. Creating a baseline index of BOTH sites to prevent bot flooding...")
+    logger.info("[*] First run detected. Creating a baseline index of BOTH sites to prevent bot flooding...")
     with open(_file("history_urls.txt"), "w") as f:
         for site in TARGET_SITES:
             html = fetch_html(site)
@@ -88,7 +107,7 @@ if not os.path.exists(_file("history_urls.txt")):
                 topics = set(re.findall(r'https://www\.1tamil(?:mv|blasters)\.[a-z]+/index\.php\?/forums/topic/[^\s"\'><]+', html))
                 for t in topics:
                     f.write(t + "\n")
-    print("✅ Baseline established! Bot will only parse topics posted from this moment forward.")
+    logger.info("✅ Baseline established! Bot will only parse topics posted from this moment forward.")
 
 # Load active state databases
 history_urls = set(open(_file("history_urls.txt")).read().splitlines()) if os.path.exists(_file("history_urls.txt")) else set()
@@ -96,7 +115,7 @@ history_titles = set(open(_file("history_titles.txt")).read().splitlines()) if o
 magnets_db = json.load(open(_file("db.json"))) if os.path.exists(_file("db.json")) else []
 
 while True:
-    print(f"\n--- ⏰ Scanning Index: {time.ctime()} ---")
+    logger.info(f"\n--- ⏰ Scanning Index: {time.ctime()} ---")
     feed_updated = False
     
     for site_url in TARGET_SITES:
@@ -107,7 +126,7 @@ while True:
             new_topics = topics - history_urls
             
             if new_topics:
-                print(f"[+] Found {len(new_topics)} new posts on {site_url}! Processing...")
+                logger.info(f"[+] Found {len(new_topics)} new posts on {site_url}! Processing...")
                 
                 for topic in new_topics:
                     page_html = fetch_html(topic)
@@ -127,20 +146,20 @@ while True:
                         
                         # Apply your custom 4K and Size Filters
                         if any(resolution in title_lower for resolution in ["4k", "2160p", "uhd"]):
-                            print(f"⏩ Filtered Out (4K): {title}")
+                            logger.info(f"⏩ Filtered Out (4K): {title}")
                             continue
                             
                         size_match = re.search(r'(\d+(?:\.\d+)?)\s*(gb|mb)', title_lower)
                         if size_match:
                             if size_match.group(2) == "gb" and float(size_match.group(1)) > 4.0:
-                                print(f"⏩ Filtered Out (Oversized {size_match.group(1)}GB): {title}")
+                                logger.info(f"⏩ Filtered Out (Oversized {size_match.group(1)}GB): {title}")
                                 continue
                         
                         # Check the Cross-Site Duplicate Filter!
                         root_title = get_root_title(title)
                         
                         if root_title not in history_titles and root_title != "unknown release":
-                            print(f"✅ Added to Feed: {title}")
+                            logger.info(f"✅ Added to Feed: {title}")
                             magnets_db.append({"title": title, "magnet": clean_mag, "date": formatdate(localtime=False)})
                             feed_updated = True
                             
@@ -149,7 +168,7 @@ while True:
                             with open(_file("history_titles.txt"), "a") as f:
                                 f.write(root_title + "\n")
                         else:
-                            print(f"🛑 Ignored Duplicate Across Sites: {title}")
+                            logger.info(f"🛑 Ignored Duplicate Across Sites: {title}")
                     
                     # Save the URL so we never open this thread again
                     history_urls.add(topic)
@@ -163,5 +182,5 @@ while True:
             json.dump(magnets_db, f)
         build_rss(magnets_db)
             
-    print(f"💤 Standby mode active for 5 minutes...")
+    logger.info(f"💤 Standby mode active for 5 minutes...")
     time.sleep(CHECK_INTERVAL)

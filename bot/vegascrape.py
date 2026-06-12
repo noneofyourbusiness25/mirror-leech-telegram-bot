@@ -1,10 +1,12 @@
 import requests
+import logging
 from bs4 import BeautifulSoup
 import re
 import time
 import os
 import json
 import urllib.parse
+import traceback
 from email.utils import formatdate
 
 # --- Configuration ---
@@ -16,10 +18,27 @@ CHECK_INTERVAL = 300
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "scrapers")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 def _file(filename):
+
     return os.path.join(DATA_DIR, filename)
 
-print("🚀 Starting Vegamovies V3 (Isolated Episodic Memory & Hybrid Bypasser)...")
+def init_empty_feed():
+    filepath = _file("vega_feed.xml")
+    if not os.path.exists(filepath):
+        xml = '<?xml version="1.0" encoding="UTF-8" ?>\n<rss version="2.0">\n<channel>\n<title>Vegamovies Auto Feed</title>\n<link>http://localhost</link>\n<description>Automated Feed</description>\n</channel>\n</rss>'
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(xml)
+        logger.info(f"Initialized empty feed file: vega_feed.xml")
+
+init_empty_feed()
+
+
+
+
+
+logger.info("🚀 Starting Vegamovies V3 (Isolated Episodic Memory & Hybrid Bypasser)...")
 
 # Initialize a persistent browser session
 try:
@@ -35,7 +54,7 @@ def fetch_html(url, delay=6000):
         if data.get("status") == "ok":
             return data["solution"]
     except Exception as e:
-        print(f"[!] FlareSolverr Error on {url}: {e}")
+        logger.error(f"[!] FlareSolverr Error on {url}: {e}")
     return None
 
 def is_under_4gb(text):
@@ -48,7 +67,7 @@ def is_under_4gb(text):
     return False
 
 def get_gatekeepers_from_hub(hub_url):
-    print(f"   [*] Scanning Hub for episodes: {hub_url}")
+    logger.info(f"   [*] Scanning Hub for episodes: {hub_url}")
     hub_solution = fetch_html(hub_url)
     gatekeepers = []
     if not hub_solution: return gatekeepers
@@ -61,11 +80,11 @@ def get_gatekeepers_from_hub(hub_url):
             if href and href not in gatekeepers:
                 gatekeepers.append(href)
     
-    print(f"   [*] Found {len(gatekeepers)} total episodes/links in Hub.")
+    logger.info(f"   [*] Found {len(gatekeepers)} total episodes/links in Hub.")
     return gatekeepers
 
 def bypass_cloudflare(gatekeeper_url):
-    print(f"   [*] Picklocking Cloudflare: {gatekeeper_url}")
+    logger.info(f"   [*] Picklocking Cloudflare: {gatekeeper_url}")
     gate_solution = fetch_html(gatekeeper_url, delay=8000)
     if not gate_solution: return gatekeeper_url
     
@@ -101,7 +120,7 @@ def bypass_cloudflare(gatekeeper_url):
                 if "googleusercontent.com" in resolved_url or "drive.google" in resolved_url:
                     return resolved_url
             except Exception as e:
-                print(f"   [!] Native Python POST failed: {e}")
+                logger.error(f"   [!] Native Python POST failed: {e}")
 
     for a in gate_soup.find_all("a"):
         href = a.get("href", "")
@@ -145,7 +164,7 @@ history_gatekeepers = set(open(_file("vega_history_gatekeepers.txt")).read().spl
 movies_db = json.load(open(_file("vega_db.json"))) if os.path.exists(_file("vega_db.json")) else []
 
 while True:
-    print(f"\n--- ⏰ Scanning Vegamovies Index: {time.ctime()} ---")
+    logger.info(f"\n--- ⏰ Scanning Vegamovies Index: {time.ctime()} ---")
     feed_updated = False
     
     sol = fetch_html(TARGET_SITE)
@@ -161,10 +180,10 @@ while True:
                 new_posts.append((post_title, post_url))
         
         if new_posts:
-            print(f"[+] Found {len(new_posts)} new or updated posts! Processing...")
+            logger.info(f"[+] Found {len(new_posts)} new or updated posts! Processing...")
             
             for post_title, post_url in new_posts:
-                print(f"[*] Analyzing: {post_title}")
+                logger.info(f"[*] Analyzing: {post_title}")
                 post_sol = fetch_html(post_url)
                 if not post_sol:
                     continue
@@ -188,7 +207,7 @@ while True:
                             final_link = bypass_cloudflare(gate_url)
                             
                             if final_link:
-                                print(f"✅ Added to Feed: {final_link}")
+                                logger.info(f"✅ Added to Feed: {final_link}")
                                 movies_db.append({"title": post_title, "link": final_link, "date": formatdate(localtime=False)})
                                 feed_updated = True
                                 
@@ -208,6 +227,6 @@ while True:
         with open(_file("vega_db.json"), "w") as f: json.dump(movies_db, f)
         build_rss(movies_db)
             
-    print(f"💤 Standby mode active for 5 minutes...")
+    logger.info(f"💤 Standby mode active for 5 minutes...")
     time.sleep(CHECK_INTERVAL)
 
