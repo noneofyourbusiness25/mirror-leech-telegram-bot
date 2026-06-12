@@ -31,11 +31,19 @@ sabnzbd_client = SabnzbdClient(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global aria2, qbittorrent
-    aria2 = Aria2HttpClient("http://localhost:6800/jsonrpc")
-    qbittorrent = await create_client("http://localhost:8090/api/v2/")
+    try:
+        aria2 = Aria2HttpClient("http://localhost:6800/jsonrpc")
+    except Exception as e:
+        LOGGER.warning(f"Could not connect to aria2: {e}")
+    try:
+        qbittorrent = await create_client("http://localhost:8090/api/v2/")
+    except Exception as e:
+        LOGGER.warning(f"Could not connect to qbittorrent: {e}")
     yield
-    await aria2.close()
-    await qbittorrent.close()
+    if aria2:
+        await aria2.close()
+    if qbittorrent:
+        await qbittorrent.close()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -243,18 +251,38 @@ async def set_aria2(gid, selected_files):
 
 
 @app.get("/feed.xml")
-async def get_feed():
-    file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bot", "data", "scrapers", "feed.xml")
+async def get_feed(request: Request):
+    LOGGER.info(f"Incoming request for feed.xml from {request.client.host}")
+    file_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "bot",
+        "data",
+        "scrapers",
+        "feed.xml",
+    )
     if os.path.exists(file_path):
+        LOGGER.info(f"Serving feed.xml from: {file_path}")
         return FileResponse(file_path, media_type="application/xml")
+    LOGGER.error(f"Feed not found: {file_path}")
     return HTMLResponse("Feed not found", status_code=404)
 
+
 @app.get("/vega_feed.xml")
-async def get_vega_feed():
-    file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bot", "data", "scrapers", "vega_feed.xml")
+async def get_vega_feed(request: Request):
+    LOGGER.info(f"Incoming request for vega_feed.xml from {request.client.host}")
+    file_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "bot",
+        "data",
+        "scrapers",
+        "vega_feed.xml",
+    )
     if os.path.exists(file_path):
+        LOGGER.info(f"Serving vega_feed.xml from: {file_path}")
         return FileResponse(file_path, media_type="application/xml")
+    LOGGER.error(f"Feed not found: {file_path}")
     return HTMLResponse("Feed not found", status_code=404)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage():

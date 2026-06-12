@@ -11,7 +11,7 @@ class Config:
     AS_DOCUMENT = False
     AUTHORIZED_CHATS = ""
     BASE_URL = ""
-    BASE_URL_PORT = 80
+    BASE_URL_PORT = 8081
     BOT_TOKEN = ""
     BUZZHEAVIER_ACCOUNT_ID = ""
     GOFILE_API_KEY = ""
