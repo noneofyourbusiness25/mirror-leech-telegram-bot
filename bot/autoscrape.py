@@ -83,10 +83,12 @@ def build_rss(items):
     xml += "<title>Ultimate Multi-Site Auto Feed</title>\n<link>http://localhost</link>\n<description>Automated Feed with Duplicate Protection</description>\n"
 
     for item in reversed(items):
+        title = item["title"].replace("<![CDATA[", "").replace("]]>", "")
+        magnet = item["magnet"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         xml += "<item>\n"
-        xml += f'  <title>{item["title"]}</title>\n'
-        xml += f'  <link>{item["magnet"]}</link>\n'
-        xml += f'  <guid>{item["magnet"]}</guid>\n'
+        xml += f'  <title><![CDATA[{title}]]></title>\n'
+        xml += f'  <link>{magnet}</link>\n'
+        xml += f'  <guid>{magnet}</guid>\n'
         xml += f'  <pubDate>{item["date"]}</pubDate>\n'
         xml += "</item>\n"
 
