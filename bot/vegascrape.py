@@ -273,12 +273,16 @@ while True:
                     with open(_file("vega_history_titles.txt"), "a") as f:
                         f.write(post_title + "\n")
 
+        logger.info(f"DEBUG: Reached save block check. feed_updated is {feed_updated}")
         if feed_updated:
+            logger.info("DEBUG: Inside if feed_updated block.")
             if len(movies_db) > 200:
                 movies_db = movies_db[-200:]
             # ISOLATED DATABASE FILE
+            logger.info("DEBUG: Writing to vega_db.json.")
             with open(_file("vega_db.json"), "w") as f:
                 json.dump(movies_db, f)
+            logger.info("DEBUG: Calling build_rss.")
             build_rss(movies_db)
             logger.info("Feed successfully written to vega_feed.xml")
 
