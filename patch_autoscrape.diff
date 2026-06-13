@@ -1,0 +1,17 @@
+--- a/bot/autoscrape.py
++++ b/bot/autoscrape.py
+@@ -239,11 +239,15 @@
+                         with open(_file("history_urls.txt"), "a") as f:
+                             f.write(topic + "\n")
+
++        logger.info(f"DEBUG: Reached save block check. feed_updated is {feed_updated}, magnets_db len: {len(magnets_db)}")
+         if feed_updated:
++            logger.info("DEBUG: Inside if feed_updated block.")
+             if len(magnets_db) > 100:
+                 magnets_db = magnets_db[-100:]
++            logger.info(f"DEBUG: Writing to db.json. magnets_db len: {len(magnets_db)}")
+             with open(_file("db.json"), "w") as f:
+                 json.dump(magnets_db, f)
++            logger.info("DEBUG: Calling build_rss.")
+             build_rss(magnets_db)
+             logger.info("Feed successfully written to feed.xml")
