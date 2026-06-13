@@ -811,6 +811,7 @@ async def rss_monitor():
             try:
                 if data["paused"]:
                     continue
+                all_paused = False
                 tries = 0
                 while True:
                     try:
@@ -822,9 +823,13 @@ async def rss_monitor():
                         ) as client:
                             LOGGER.info(f"Fetching RSS URL: {data['link']}")
                             res = await client.get(data["link"])
-                            LOGGER.info(f"RSS Fetch HTTP Status: {res.status_code} for {data['link']}")
+                            LOGGER.info(
+                                f"RSS Fetch HTTP Status: {res.status_code} for {data['link']}"
+                            )
                         html = res.text
-                        LOGGER.info(f"RSS Response Length: {len(html)} chars. Preview: {html[:200]}")
+                        LOGGER.info(
+                            f"RSS Response Length: {len(html)} chars. Preview: {html[:200]}"
+                        )
                         break
                     except Exception as e:
                         LOGGER.error(f"Error fetching RSS {data['link']}: {e}")
@@ -835,8 +840,12 @@ async def rss_monitor():
                 rss_d = feed_parse(html)
                 LOGGER.info(f"Feedparser Bozo Status: {rss_d.bozo} for {data['link']}")
                 if rss_d.bozo:
-                    LOGGER.info(f"Feedparser Bozo Exception: {rss_d.get('bozo_exception')} for {data['link']}")
-                LOGGER.info(f"Parsed entry count: {len(rss_d.entries)} for {data['link']}")
+                    LOGGER.info(
+                        f"Feedparser Bozo Exception: {rss_d.get('bozo_exception')} for {data['link']}"
+                    )
+                LOGGER.info(
+                    f"Parsed entry count: {len(rss_d.entries)} for {data['link']}"
+                )
 
                 if not rss_d.entries:
                     LOGGER.warning(
@@ -844,7 +853,9 @@ async def rss_monitor():
                     )
                     continue
                 else:
-                    LOGGER.info(f"First parsed entry Title: {rss_d.entries[0].get('title')} - Link: {rss_d.entries[0].get('link')}")
+                    LOGGER.info(
+                        f"First parsed entry Title: {rss_d.entries[0].get('title')} - Link: {rss_d.entries[0].get('link')}"
+                    )
                 entry0 = rss_d.entries[0]
                 links = entry0.get("links", [])
                 if len(links) > 1:
@@ -854,7 +865,6 @@ async def rss_monitor():
                 else:
                     last_link = entry0.get("link")
                 last_title = entry0.get("title")
-                all_paused = False
                 if data["last_feed"] == last_link or data["last_title"] == last_title:
                     continue
                 feed_count = 0
