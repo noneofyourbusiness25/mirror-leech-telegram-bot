@@ -131,14 +131,33 @@ class TelegramUploader:
         return True
 
     async def _prepare_file(self, file_, dirpath):
+        # Remove tags like www.domain.com, -VegaMovies, @groupname
+        clean_regex = r"(?i)(?:\[?www\.[a-zA-Z0-9-]+\.[a-zA-Z]+\]?(?: - | )?)|(?:-?[a-zA-Z0-9]*movies\b)|(?:@[a-zA-Z0-9_]+)|(?:[a-zA-Z0-9-]+\.rsvp)"
+        cleaned_file_ = re_sub(clean_regex, "", file_).strip(" -_")
+
+        # Fix .mkv.001 to .part001.mkv
+        if match := re_match(r"^(.*)(\.[a-zA-Z0-9]+)\.([0-9]+)$", cleaned_file_):
+            base = match.group(1)
+            ext = match.group(2)
+            part = match.group(3)
+            cleaned_file_ = f"{base}.part{part}{ext}"
+
+        if cleaned_file_ != file_:
+            new_path = ospath.join(dirpath, cleaned_file_)
+            await rename(self._up_path, new_path)
+            self._up_path = new_path
+            file_ = cleaned_file_
+
         if self._lprefix:
             cap_mono = f"{self._lprefix} <code>{file_}</code>"
             self._lprefix = re_sub("<.*?>", "", self._lprefix)
             new_path = ospath.join(dirpath, f"{self._lprefix} {file_}")
             await rename(self._up_path, new_path)
             self._up_path = new_path
+            file_ = f"{self._lprefix} {file_}"
         else:
             cap_mono = f"<code>{file_}</code>"
+
         if len(file_) > 60:
             if is_archive(file_):
                 name = get_base_name(file_)
